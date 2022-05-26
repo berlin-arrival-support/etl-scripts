@@ -1,7 +1,11 @@
 library(data.table)
 library(ggplot2)
-library(magrittr)
 library(ggdist)
+
+# Settings ---------------------------------------------------------------------
+
+OUT_DIR <- "output/plots"
+
 
 
 # Functions --------------------------------------------------------------------
@@ -119,24 +123,8 @@ data_range[est == 0, est := NA]
 
 # Plotting ---------------------------------------------------------------------
 
-data_range %>%
-  ggplot() +
+plot_01 <- ggplot(data_range[day >= "2022-04-28", ]) +
   aes(x = time, y = est) +
-  geom_point(aes(group = day), alpha = 1/10) +
-  theme_bw()
-
-ggplot(data_range[day >= "2022-04-23", ]) +
-  aes(x = time, y = est) +
-  stat_lineribbon(
-    .width = c(.5, .6, .7),
-    size = 0,
-    na.rm = TRUE) +
-  theme_bw() +
-  scale_fill_brewer()
-
-
-data_range[day >= "2022-04-28",] %>%
-  ggplot(aes(x = time, y = est)) +
   stat_lineribbon(
     aes(fill = stat(.width)),
     .width = ppoints(200),
@@ -144,6 +132,24 @@ data_range[day >= "2022-04-28",] %>%
     ) +
   scale_fill_distiller() +
   theme_bw() +
-  scale_x_datetime(date_labels = "%H:%M", date_breaks = "2 hours")
+  scale_x_datetime(date_labels = "%H:%M", date_breaks = "2 hours") +
+  labs(
+    title = "Estimated People with needs over the Day",
+    x = "Hour of the day",
+    y = "Number of People at Hbf",
+    caption = ""
+  )
 
 
+plt_01
+
+ggsave(
+  file.path(
+    OUT_DIR,
+    sprintf("duration_estimate_hbf_%s.jpg", format(Sys.Date(), "%m-%d"))
+  ),
+  plt_01,
+  width = 15,
+  height = 10,
+  units = "cm"
+)
