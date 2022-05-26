@@ -1,7 +1,13 @@
 library(data.table)
 library(ggplot2)
 
+
+# Settings
+
 DAYS <- 21
+OUT_DIR <- "output/plots"
+
+# Import data
 
 db_data <- fread("arrival-times-db/data/cleaned_db_data.R")
 db_data <- db_data[ts_planned > Sys.time() - DAYS * 24 * 60 * 60, ]
@@ -12,20 +18,22 @@ train_labels[, label := sprintf("%s (%s) %s", id, time, description)]
 train_labels$label <- with(train_labels, reorder(label, time))
 
 setorder(train_labels, time)
-train_order <- train_labels$label
 
+train_order <- train_labels$label
 db_data <- db_data[train_labels[, .(id, label)], on = "id"]
-db_data_summary <- db_data[, .(median = median(pax_info), mean = mean(pax_info)), by = "label"]
+
+db_data_summary <- db_data[,
+  .(median = median(pax_info), mean = mean(pax_info)),
+  by = "label"
+]
 
 
 plt1 <- ggplot(
     db_data
   ) +
   aes(
-    #x = format(ts_planned, format = "%d.%m"),
     x = as.Date(days),
     y = pax_info) +
-  #geom_col(alpha = 0.3) +
   geom_smooth(
     color = "#0B3934",
     alpha = 0.4,
@@ -43,14 +51,6 @@ plt1 <- ggplot(
     check_overlap = TRUE,
     nudge_y = 40
   ) +
-  #geom_segment(aes(
-  #  x = days,
-  #  xend = days,
-  #  y = pax_info,
-  #  yend = 0),
-  #  color = "grey",
-  #  alpha = 0.5
-  #) +
   geom_hline(
     data = db_data_summary,
     aes(yintercept = median),
@@ -83,44 +83,14 @@ plt1 <- ggplot(
     axis.text.x = element_text(angle = 45)
   )
 
-plt1
-
-
-plt2 <- ggplot(db_data[delay < 500, ]) +
-  aes(x = days, y = as.numeric(delay)) +
-  geom_point(aes(col = pax_info)) +
-  facet_wrap(~factor(label, levels = train_order), ncol = 3) +
-  geom_smooth() +
-  theme_linedraw() +
-  coord_cartesian(ylim = c(0, 220)) +
-  labs(
-    title = "Delays for Arrivals at Hbf",
-    x = "Date",
-    y = "Delay (Minutes)"
-  )
-
-
-db_day <- db_data[, .(pax_info = sum(pax_info)), by = "days"]
-db_day[, `:=`(
-  week_num = strftime(days, format = "%V"),
-  day = strftime(days, format = "%A"),
-  day_num = strftime(days, format = "%w")
-)]
-
-
 
 ggsave(
-  sprintf("arrival_trains_hbf_%s.jpg", format(Sys.Date(), "%m-%d")),
+  file.path(
+    OUT_DIR,
+    sprintf("arrival_trains_hbf_%s.jpg", format(Sys.Date(), "%m-%d"))
+  ),
   plt1,
-  width = 20,
-  height = 25,
-  units = "cm")
-
-ggsave(
-  sprintf("arrival_trains_hbf_delay_%s.jpg", format(Sys.Date(), "%m-%d")),
-  plt2,
   width = 20,
   height = 25,
   units = "cm"
 )
-
