@@ -4,12 +4,22 @@ library(ggplot2)
 
 # Settings
 
-DAYS <- 21
+DAYS <- 30
 OUT_DIR <- "output/plots"
+
+#train_filter <- c("EC 56", "EC 44", "EC 246", "EC 248")
+train_filter <- NULL
+
+
 
 # Import data
 
 db_data <- fread("arrival-times-db/data/cleaned_db_data.R")
+
+db_data <- db_data[!grep("ICE", id), ]
+db_data <- db_data[!id %in% "ICE  905", ]
+db_data <- db_data[grepl("Wars|Prze", description), ]
+
 db_data <- db_data[ts_planned > Sys.time() - DAYS * 24 * 60 * 60, ]
 
 train_labels <- db_data[, .(time = min(format(ts_planned, format = "%H:%M"))), .(id, description)]
@@ -21,6 +31,13 @@ setorder(train_labels, time)
 
 train_order <- train_labels$label
 db_data <- db_data[train_labels[, .(id, label)], on = "id"]
+
+if (!is.null(train_filter)) {
+  train_labels <- train_labels[id %in% train_filter, ]
+  db_data <- db_data[id %in% train_filter, ]
+}
+
+
 
 db_data_summary <- db_data[,
   .(median = median(pax_info), mean = mean(pax_info)),
