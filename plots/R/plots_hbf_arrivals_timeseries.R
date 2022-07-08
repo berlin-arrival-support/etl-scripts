@@ -28,22 +28,16 @@ db_data_summary <- db_data[,
 ]
 
 
-plt1 <- ggplot(
-    db_data
-  ) +
-  aes(
-    x = as.Date(days),
-    y = pax_info) +
+plt1 <- ggplot(db_data) +
+  aes(x = as.Date(days), y = pax_info) +
   geom_smooth(
     color = "#0B3934",
-    alpha = 0.4,
+    size = 0,
+    alpha = 0.3,
     linetype = "dashed",
     fill = "#ffea8b17"
   ) +
-  geom_point(
-    color = "#0B3934",
-    alpha = 0.5
-  ) +
+  geom_point(color = "#0B3934", alpha = 0.5) +
   geom_text(
     aes(label = pax_info),
     alpha = 0.5,
@@ -51,12 +45,9 @@ plt1 <- ggplot(
     check_overlap = TRUE,
     nudge_y = 40
   ) +
-  geom_hline(
-    data = db_data_summary,
-    aes(yintercept = median),
-    alpha = 0.3
-  ) +
+  geom_hline(data = db_data_summary, aes(yintercept = median), alpha = 0.3) +
   geom_vline(xintercept = Sys.Date()) +
+  geom_hline(yintercept = 0) +
   geom_hline(
     data = db_data_summary,
     aes(yintercept = mean),
@@ -65,9 +56,11 @@ plt1 <- ggplot(
   ) +
   facet_wrap(
     ~factor(label, levels = train_order),
-    ncol = 3) +
+    ncol = 1,
+    scales = "free_y"
+    ) +
   theme_linedraw() +
-  coord_cartesian(ylim = c(0, max(db_data$pax_info + 20))) +
+  #coord_cartesian(ylim = c(0, 520)) +
   labs(
     title = "Arrivals at Berlin Hbf | Disaggregated per Train",
     x = "Date",
@@ -81,7 +74,8 @@ plt1 <- ggplot(
     strip.background = element_rect(fill = "#0B3934"),
     strip.text = element_text(color = "#FFD513"),
     axis.text.x = element_text(angle = 45)
-  )
+  ) +
+  scale_x_date(date_breaks = "3 days", date_labels = "%b %d")
 
 
 ggsave(
