@@ -81,10 +81,10 @@ plt1 <- ggplot(db_data) +
 ggsave(
   file.path(
     OUT_DIR,
-    sprintf("arrival_trains_hbf_%s.jpg", format(Sys.Date(), "%m-%d"))
+    sprintf("arrival_trains_hbf_%s_%s.jpg", DAYS, format(max(db_data$days), "%m-%d"))
   ),
   plt1,
   width = 20,
-  height = 25,
+  height = 30,
   units = "cm"
 )
