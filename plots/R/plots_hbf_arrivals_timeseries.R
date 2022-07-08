@@ -1,9 +1,25 @@
 library(data.table)
 library(ggplot2)
 
-DAYS <- 21
+
+# Settings
+
+DAYS <- 30
+OUT_DIR <- "output/plots"
+
+#train_filter <- c("EC 56", "EC 44", "EC 246", "EC 248")
+train_filter <- NULL
+
+
+
+# Import data
 
 db_data <- fread("arrival-times-db/data/cleaned_db_data.R")
+
+db_data <- db_data[!grep("ICE", id), ]
+db_data <- db_data[!id %in% "ICE  905", ]
+db_data <- db_data[grepl("Wars|Prze", description), ]
+
 db_data <- db_data[ts_planned > Sys.time() - DAYS * 24 * 60 * 60, ]
 
 train_labels <- db_data[, .(time = min(format(ts_planned, format = "%H:%M"))), .(id, description)]
@@ -12,30 +28,33 @@ train_labels[, label := sprintf("%s (%s) %s", id, time, description)]
 train_labels$label <- with(train_labels, reorder(label, time))
 
 setorder(train_labels, time)
+
 train_order <- train_labels$label
-
 db_data <- db_data[train_labels[, .(id, label)], on = "id"]
-db_data_summary <- db_data[, .(median = median(pax_info), mean = mean(pax_info)), by = "label"]
+
+if (!is.null(train_filter)) {
+  train_labels <- train_labels[id %in% train_filter, ]
+  db_data <- db_data[id %in% train_filter, ]
+}
 
 
-plt1 <- ggplot(
-    db_data
-  ) +
-  aes(
-    #x = format(ts_planned, format = "%d.%m"),
-    x = as.Date(days),
-    y = pax_info) +
-  #geom_col(alpha = 0.3) +
+
+db_data_summary <- db_data[,
+  .(median = median(pax_info), mean = mean(pax_info)),
+  by = "label"
+]
+
+
+plt1 <- ggplot(db_data) +
+  aes(x = as.Date(days), y = pax_info) +
   geom_smooth(
     color = "#0B3934",
-    alpha = 0.4,
+    size = 0,
+    alpha = 0.3,
     linetype = "dashed",
     fill = "#ffea8b17"
   ) +
-  geom_point(
-    color = "#0B3934",
-    alpha = 0.5
-  ) +
+  geom_point(color = "#0B3934", alpha = 0.5) +
   geom_text(
     aes(label = pax_info),
     alpha = 0.5,
@@ -43,20 +62,9 @@ plt1 <- ggplot(
     check_overlap = TRUE,
     nudge_y = 40
   ) +
-  #geom_segment(aes(
-  #  x = days,
-  #  xend = days,
-  #  y = pax_info,
-  #  yend = 0),
-  #  color = "grey",
-  #  alpha = 0.5
-  #) +
-  geom_hline(
-    data = db_data_summary,
-    aes(yintercept = median),
-    alpha = 0.3
-  ) +
+  geom_hline(data = db_data_summary, aes(yintercept = median), alpha = 0.3) +
   geom_vline(xintercept = Sys.Date()) +
+  geom_hline(yintercept = 0) +
   geom_hline(
     data = db_data_summary,
     aes(yintercept = mean),
@@ -65,9 +73,11 @@ plt1 <- ggplot(
   ) +
   facet_wrap(
     ~factor(label, levels = train_order),
-    ncol = 3) +
+    ncol = 1,
+    scales = "free_y"
+    ) +
   theme_linedraw() +
-  coord_cartesian(ylim = c(0, max(db_data$pax_info + 20))) +
+  #coord_cartesian(ylim = c(0, 520)) +
   labs(
     title = "Arrivals at Berlin Hbf | Disaggregated per Train",
     x = "Date",
@@ -81,46 +91,17 @@ plt1 <- ggplot(
     strip.background = element_rect(fill = "#0B3934"),
     strip.text = element_text(color = "#FFD513"),
     axis.text.x = element_text(angle = 45)
-  )
-
-plt1
-
-
-plt2 <- ggplot(db_data[delay < 500, ]) +
-  aes(x = days, y = as.numeric(delay)) +
-  geom_point(aes(col = pax_info)) +
-  facet_wrap(~factor(label, levels = train_order), ncol = 3) +
-  geom_smooth() +
-  theme_linedraw() +
-  coord_cartesian(ylim = c(0, 220)) +
-  labs(
-    title = "Delays for Arrivals at Hbf",
-    x = "Date",
-    y = "Delay (Minutes)"
-  )
-
-
-db_day <- db_data[, .(pax_info = sum(pax_info)), by = "days"]
-db_day[, `:=`(
-  week_num = strftime(days, format = "%V"),
-  day = strftime(days, format = "%A"),
-  day_num = strftime(days, format = "%w")
-)]
-
+  ) +
+  scale_x_date(date_breaks = "3 days", date_labels = "%b %d")
 
 
 ggsave(
-  sprintf("arrival_trains_hbf_%s.jpg", format(Sys.Date(), "%m-%d")),
+  file.path(
+    OUT_DIR,
+    sprintf("arrival_trains_hbf_%s_%s.jpg", DAYS, format(max(db_data$days), "%m-%d"))
+  ),
   plt1,
   width = 20,
-  height = 25,
-  units = "cm")
-
-ggsave(
-  sprintf("arrival_trains_hbf_delay_%s.jpg", format(Sys.Date(), "%m-%d")),
-  plt2,
-  width = 20,
-  height = 25,
+  height = 30,
   units = "cm"
 )
-
